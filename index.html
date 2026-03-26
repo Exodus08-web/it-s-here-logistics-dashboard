@@ -1,0 +1,478 @@
+Upgrade 3 
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>It'sHere Ultra Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+/* ---------- GENERAL STYLES ---------- */
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif;transition:all 0.3s;}
+body{background:#0f172a;color:#fff;}
+a{text-decoration:none;color:inherit;}
+button{cursor:pointer;}
+
+/* ---------- DASHBOARD LAYOUT ---------- */
+.dashboard{display:flex;min-height:100vh;overflow-x:hidden;}
+.main{flex:1;padding:20px;background:rgba(15,23,42,0.6);backdrop-filter:blur(12px);transition:margin-left 0.3s;}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+.user{display:flex;align-items:center;gap:10px;padding:8px 15px;background:rgba(30,41,59,0.6);border-radius:8px;}
+
+/* ---------- SIDEBAR ---------- */
+.sidebar{
+  width:0;
+  overflow:hidden;
+  background:rgba(30,41,59,0.95);
+  backdrop-filter:blur(12px);
+  padding:20px;
+  color:#ccc;
+  position:fixed;
+  left:0;top:0;bottom:0;
+  z-index:1000;
+  transition:width 0.3s;
+}
+.sidebar h2{color:#22c55e;margin-bottom:30px;}
+.sidebar nav a{display:block;margin:15px 0;color:#ccc;opacity:0;transition:opacity 0.3s;}
+.dashboard:hover .sidebar nav a{opacity:1;}
+.sidebar.mobile-open{width:220px;}
+.sidebar.mobile-open nav a{opacity:1;}
+
+/* ---------- SIDEBAR TOGGLE BUTTON ---------- */
+.toggle-btn{padding:8px 12px;border:none;border-radius:5px;background:#22c55e;color:#fff;}
+
+/* ---------- STATS CARDS ---------- */
+.stats{display:flex;gap:15px;margin-bottom:10px;flex-wrap:wrap;}
+.card{flex:1 1 150px;background:rgba(30,41,59,0.6);backdrop-filter:blur(12px);padding:20px;border-radius:12px;text-align:center;cursor:pointer;transition: transform 0.3s, box-shadow 0.3s;}
+.card:hover{transform:translateY(-5px) scale(1.02);box-shadow:0 0 20px rgba(34,197,94,0.2);}
+
+/* ---------- BAR CHART ---------- */
+.bar-chart{display:flex;gap:15px;height:150px;max-width:400px;margin:0 auto 30px;align-items:flex-end;position:relative;}
+.bar{flex:1;border-radius:8px 8px 0 0;transition:height 1s ease-in-out;position:relative;cursor:pointer;}
+.bar span{position:absolute;top:-20px;width:100%;text-align:center;font-size:12px;}
+.bar-indicator{position:absolute;bottom:0;left:50%;width:10px;height:10px;border-radius:50%;transform:translateX(-50%);animation:bounce 1s infinite;}
+@keyframes bounce{0%,100%{transform:translate(-50%,0);}50%{transform:translate(-50%,-10px);}}
+
+/* ---------- TABLE ---------- */
+.table-section{
+  background: rgba(30,41,59,0.6);
+  backdrop-filter: blur(16px); /* ✅ ADD */
+  border: 1px solid rgba(255,255,255,0.1); /* ✅ ADD */
+  padding:20px;
+  border-radius:12px;
+  overflow-x:auto;
+  margin-bottom:20px;
+}
+table{width:100%;border-collapse:collapse;}
+th,td{padding:12px;text-align:left;}
+tr:hover{background: rgba(255,255,255,0.05);cursor:pointer;transition:0.2s;}
+.status-filters{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;justify-content:center;}
+.status-filters button{padding:6px 12px;border:none;border-radius:5px;background:#22c55e;color:#fff;}
+.status-filters button.active{background:#16a34a;}
+#export-btn{background:#f59e0b;color:#111;}
+thead{
+  position: sticky;
+  top: 0;
+  background: rgba(30,41,59,0.9);
+}
+
+tr{
+  transition: all 0.2s ease;
+}
+
+tr:hover{
+  transform: scale(1.01);
+}
+
+/* ---------- CHARTS ---------- */
+.chart-container{display:flex;flex-direction:column;gap:20px;align-items:center;margin-bottom:30px;}
+canvas{background:rgba(30,41,59,0.6);border-radius:12px;padding:10px;max-width:100%;}
+
+/* ---------- MODAL ---------- */
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;display:none;justify-content:center;align-items:center;background:rgba(0,0,0,0.5);}
+.modal-content{background:rgba(15,23,42,0.95);padding:20px;border-radius:12px;width:90%;max-width:400px;color:#fff;position:relative;transform:scale(0);transition:0.3s;}
+.modal-content.show{transform:scale(1);}
+.close-btn{position:absolute;top:10px;right:10px;cursor:pointer;font-size:18px;}
+
+/* ---------- PROFILE ---------- */
+.user img{width:32px;height:32px;border-radius:50%;object-fit:cover;}
+
+/* ---------- LIGHT MODE ---------- */
+body.light-mode{background:#f5f5f5;color:#111;}
+body.light-mode .main{background: rgba(245,245,245,0.6);}
+body.light-mode .sidebar{background:rgba(209,213,219,0.95);color:#111;}
+body.light-mode .sidebar a,body.light-mode .sidebar a.active{color:#111;}
+body.light-mode .card{background:rgba(255,255,255,0.6);color:#111;}
+body.light-mode .table-section{background:rgba(255,255,255,0.6);color:#111;}
+body.light-mode .modal-content{background:rgba(245,245,245,0.95);color:#111;}
+body.light-mode canvas{background:rgba(255,255,255,0.6);}
+
+/* ---------- MEDIA ---------- */
+@media(max-width:900px){
+  .dashboard{flex-direction:column;}
+  .main{margin-left:0 !important;}
+  .bar-chart{height:120px;max-width:100%;}
+  .chart-container{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+<div class="dashboard">
+<!-- SIDEBAR -->
+<aside class="sidebar">
+<h2>It'sHere</h2>
+<nav>
+<a href="#" class="active" data-page="dashboard">Dashboard</a>
+<a href="#" data-page="deliveries">Deliveries</a>
+<a href="#" data-page="warehouse">Warehouse</a>
+<a href="#" data-page="analytics">Analytics</a>
+</nav>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+<div class="topbar">
+<button class="toggle-btn">Dark Mode</button>
+<div class="user"><img src="https://via.placeholder.com/32" alt="Profile"> Exodus</div>
+</div>
+
+<!-- PAGES -->
+<section class="page" id="dashboard-page">
+<h1>Dashboard</h1>
+
+<div class="stats">
+<div class="card"><h3>Total</h3><p id="total-deliveries">5</p></div>
+<div class="card"><h3>Success</h3><p id="success-count">0</p></div>
+<div class="card"><h3>Failed</h3><p id="failed-count">0</p></div>
+<div class="card"><h3>Pending</h3><p id="pending-count">0</p></div>
+<div class="card"><h3>In Transit</h3><p id="intransit-count">0</p></div>
+</div>
+
+<section class="bar-chart">
+<div class="bar" id="bar-success" style="background:green;"><span>0</span><div class="bar-indicator" style="background:lime;"></div></div>
+<div class="bar" id="bar-failed" style="background:red;"><span>0</span><div class="bar-indicator" style="background:red;"></div></div>
+<div class="bar" id="bar-pending" style="background:yellow;"><span>0</span><div class="bar-indicator" style="background:gold;"></div></div>
+<div class="bar" id="bar-intransit" style="background:blue;"><span>0</span><div class="bar-indicator" style="background:deepskyblue;"></div></div>
+</section>
+
+<div class="table-section">
+<h3>Deliveries Status</h3>
+<div class="status-filters">
+<button data-status="All" class="active">All</button>
+<button data-status="Success">Success</button>
+<button data-status="Failed">Failed</button>
+<button data-status="Pending">Pending</button>
+<button data-status="In Transit">In Transit</button>
+<button id="export-btn">Export CSV</button>
+</div>
+<input type="text" id="search" placeholder="Search Customer..." style="padding:8px;margin-bottom:10px;width:100%;border-radius:5px;border:none;">
+<table id="delivery-table"><tr><th>ID</th><th>Customer</th><th>Status</th></tr></table>
+
+<div class="chart-container">
+<canvas id="lineChart" width="300" height="200"></canvas>
+<canvas id="pieChart" width="200" height="200"></canvas>
+</div>
+
+</section>
+</section>
+
+
+<!-- DELIVERIES PAGE -->
+<section class="page" id="deliveries-page" style="display:none;">
+<h1>Deliveries</h1>
+<p>All your deliveries are active here.</p>
+<table id="delivery-table-2"><tr><th>ID</th><th>Customer</th><th>Status</th></tr></table>
+</section>
+
+<!-- WAREHOUSE PAGE -->
+<section class="page" id="warehouse-page" style="display:none;">
+<h1>Warehouse</h1>
+<p>Inventory overview:</p>
+<table id="warehouse-table"><tr><th>Item</th><th>Stock</th><th>Status</th></tr>
+<tr><td>Item A</td><td>120</td><td>Available</td></tr>
+<tr><td>Item B</td><td>0</td><td>Out of Stock</td></tr>
+<tr><td>Item C</td><td>45</td><td>Low Stock</td></tr>
+</table>
+</section>
+
+<!-- ANALYTICS PAGE -->
+<section class="page" id="analytics-page" style="display:none;">
+<h1>Analytics</h1>
+<div class="stats">
+<div class="card"><h3>Total Deliveries</h3><p id="analytics-total">0</p></div>
+<div class="card"><h3>Success Rate</h3><p id="analytics-success">0%</p></div>
+<div class="card"><h3>Failed</h3><p id="analytics-failed">0</p></div>
+<div class="card"><h3>In Transit</h3><p id="analytics-intransit">0</p></div>
+</div>
+<div class="chart-container">
+<canvas id="analyticsLine" width="300" height="200"></canvas>
+<canvas id="analyticsPie" width="200" height="200"></canvas>
+</div>
+</section>
+
+</main>
+</div>
+
+<div class="modal" id="modal">
+<div class="modal-content" id="modal-content">
+<span class="close-btn" id="close-modal">&times;</span>
+<h3>Delivery Details</h3>
+<p id="modal-info"></p>
+</div>
+</div>
+
+<script>
+// ---------- DATA ----------
+let deliveries=[{id:'#101',customer:'Alice',status:'Success'},{id:'#102',customer:'Bob',status:'Success'},{id:'#103',customer:'Charlie',status:'Success'},{id:'#104',customer:'David',status:'Success'},{id:'#105',customer:'Eve',status:'Success'}];
+const statuses=['Success','Failed','Pending','In Transit'];
+let revenueData=[100,200,150,300,250,400,350];
+
+// ---------- DOM ----------
+const table=document.getElementById('delivery-table');
+const table2=document.getElementById('delivery-table-2');
+const counts={success:document.getElementById('success-count'),failed:document.getElementById('failed-count'),pending:document.getElementById('pending-count'),intransit:document.getElementById('intransit-count')};
+const bars={success:document.getElementById('bar-success'),failed:document.getElementById('bar-failed'),pending:document.getElementById('bar-pending'),intransit:document.getElementById('bar-intransit')};
+const total=document.getElementById('total-deliveries');
+const modal=document.getElementById('modal');
+const modalInfo=document.getElementById('modal-info');
+const modalContent=document.getElementById('modal-content');
+const closeModal=document.getElementById('close-modal');
+closeModal.addEventListener('click',()=>{modalContent.classList.remove('show'); setTimeout(()=>modal.style.display='none',300);});
+
+const searchInput=document.getElementById('search');
+let currentFilter='All';
+
+// ---------- CHARTS ----------
+const ctxLine=document.getElementById('lineChart').getContext('2d');
+const lineChart=new Chart(ctxLine,{type:'line',data:{labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],datasets:[{label:'Revenue',data:revenueData,backgroundColor:'rgba(34,197,94,0.2)',borderColor:'rgba(34,197,94,1)',borderWidth:2,tension:0.4,pointRadius:6,pointHoverRadius:8}]},options:{responsive:true,plugins:{legend:{display:false}},interaction:{mode:'nearest',intersect:true}}});
+
+const ctxPie=document.getElementById('pieChart').getContext('2d');
+const pieChart=new Chart(ctxPie,{type:'pie',data:{labels:['Success','Failed','Pending','In Transit'],datasets:[{data:[0,0,0,0],backgroundColor:['green','red','yellow','blue']}]},options:{responsive:true}});
+
+const analyticsLineCtx=document.getElementById('analyticsLine').getContext('2d');
+const analyticsLineChart=new Chart(analyticsLineCtx,{type:'line',data:{labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],datasets:[{label:'Revenue',data:revenueData,backgroundColor:'rgba(34,197,94,0.2)',borderColor:'rgba(34,197,94,1)',borderWidth:2,tension:0.4,pointRadius:6,pointHoverRadius:8}]},options:{responsive:true,plugins:{legend:{display:false}}}});
+
+const analyticsPieCtx=document.getElementById('analyticsPie').getContext('2d');
+const analyticsPieChart=new Chart(analyticsPieCtx,{type:'pie',data:{labels:['Success','Failed','Pending','In Transit'],datasets:[{data:[0,0,0,0],backgroundColor:['green','red','yellow','blue']}]},options:{responsive:true}});
+
+// ---------- FUNCTIONS ----------
+function updateDashboard(search='',statusFilter='All'){
+  deliveries.forEach(d=>{d.status=statuses[Math.floor(Math.random()*statuses.length)];});
+
+  // TABLE - DASHBOARD
+  table.innerHTML='<tr><th>ID</th><th>Customer</th><th>Status</th></tr>';
+  table2.innerHTML='<tr><th>ID</th><th>Customer</th><th>Status</th></tr>';
+  deliveries.filter(d=>d.customer.toLowerCase().includes(search.toLowerCase())&&(statusFilter==='All'||d.status===statusFilter)).forEach(d=>{
+    const row=document.createElement('tr');
+    row.innerHTML=`<td>${d.id}</td><td>${d.customer}</td><td>${d.status}</td>`;
+    row.addEventListener('click',()=>{
+      modal.style.display='flex';
+      setTimeout(()=>modalContent.classList.add('show'),10);
+      modalInfo.innerHTML=`ID: ${d.id}<br>Customer: ${d.customer}<br>Status: ${d.status}<br>Updated: ${new Date().toLocaleTimeString()}`;
+    });
+    table.appendChild(row);
+    table2.appendChild(row.cloneNode(true));
+  });
+
+  // COUNTS
+  const statCounts={Success:0,Failed:0,Pending:0,"In Transit":0};
+  deliveries.forEach(d=>statCounts[d.status]++);
+  counts.success.innerText=statCounts.Success;
+  counts.failed.innerText=statCounts.Failed;
+  counts.pending.innerText=statCounts.Pending;
+  counts.intransit.innerText=statCounts["In Transit"];
+  total.innerText=deliveries.length;
+
+  // BARS
+  const max=Math.max(statCounts.Success,statCounts.Failed,statCounts.Pending,statCounts["In Transit"],1);
+  Object.entries(bars).forEach(([k,v])=>{
+    const key = k==='intransit'?"In Transit":k.charAt(0).toUpperCase()+k.slice(1);
+    const count = statCounts[key];
+    v.style.height=(count/max*120)+'px';
+    v.querySelector('span').innerText=count;
+    v.querySelector('.bar-indicator').style.animationDuration=(0.8+Math.random()*0.5)+'s';
+  });
+
+  // PIE CHART
+  pieChart.data.datasets[0].data=[statCounts.Success,statCounts.Failed,statCounts.Pending,statCounts["In Transit"]];
+  pieChart.update();
+
+  // LINE CHART
+  lineChart.data.datasets[0].data=revenueData.map(val=>val+Math.floor(Math.random()*20-10));
+   lineChart.update();
+
+  // ANALYTICS PAGE STATS & CHARTS
+  document.getElementById('analytics-total').innerText = deliveries.length;
+  const successRate = Math.round((statCounts.Success / deliveries.length) * 100) || 0;
+  document.getElementById('analytics-success').innerText = successRate + '%';
+  document.getElementById('analytics-failed').innerText = statCounts.Failed;
+  document.getElementById('analytics-intransit').innerText = statCounts["In Transit"];
+
+  analyticsPieChart.data.datasets[0].data = [statCounts.Success, statCounts.Failed, statCounts.Pending, statCounts["In Transit"]];
+  analyticsPieChart.update();
+
+  analyticsLineChart.data.datasets[0].data = revenueData.map(val => val + Math.floor(Math.random() * 20 - 10));
+  analyticsLineChart.update();
+}
+
+// INITIAL DASHBOARD RENDER
+updateDashboard();
+setInterval(() => updateDashboard(searchInput.value, currentFilter), 9000);
+
+// SEARCH INPUT
+searchInput.addEventListener('input', () => updateDashboard(searchInput.value, currentFilter));
+
+// STATUS FILTER BUTTONS
+document.querySelectorAll('.status-filters button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentFilter = btn.dataset.status;
+    document.querySelectorAll('.status-filters button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    updateDashboard(searchInput.value, currentFilter);
+  });
+});
+
+// EXPORT CSV
+document.getElementById('export-btn').addEventListener('click', () => {
+  let csv = 'ID,Customer,Status\n';
+  deliveries.forEach(d => { csv += `${d.id},${d.customer},${d.status}\n`; });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'deliveries.csv'; a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ---------- PAGE NAVIGATION ----------
+document.querySelectorAll('.sidebar nav a').forEach(link => {
+  link.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelectorAll('.sidebar nav a').forEach(l => l.classList.remove('active'));
+    link.classList.add('active');
+    const page = link.dataset.page;
+    document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+    document.getElementById(page + '-page').style.display = 'block';
+  });
+});
+
+// ---------- DARK/LIGHT MODE TOGGLE ----------
+const toggleBtn = document.querySelector('.toggle-btn');
+toggleBtn.addEventListener('click', () => {
+  document.body.classList.toggle('light-mode');
+  toggleBtn.innerText = document.body.classList.contains('light-mode') ? 'Dark Mode' : 'Light Mode';
+});
+
+// ---------- NEW CLEAN SIDEBAR SYSTEM ----------
+
+const sidebar = document.querySelector('.sidebar');
+const main = document.querySelector('.main');
+
+// Overlay
+const overlay = document.createElement('div');
+overlay.style.position = 'fixed';
+overlay.style.top = '0';
+overlay.style.left = '0';
+overlay.style.width = '100%';
+overlay.style.height = '100%';
+overlay.style.background = 'rgba(0,0,0,0.4)';
+overlay.style.backdropFilter = 'blur(3px)';
+overlay.style.zIndex = '1400';
+overlay.style.opacity = '0';
+overlay.style.pointerEvents = 'none';
+overlay.style.transition = '0.3s';
+document.body.appendChild(overlay);
+
+// Hamburger
+const hamburger = document.createElement('button');
+hamburger.innerHTML = '&#9776;';
+hamburger.style.position = 'fixed';
+hamburger.style.top = '15px';
+hamburger.style.left = '15px';
+hamburger.style.zIndex = '2000';
+hamburger.style.padding = '10px 14px';
+hamburger.style.borderRadius = '8px';
+hamburger.style.background = '#22c55e';
+hamburger.style.color = '#fff';
+hamburger.style.border = 'none';
+hamburger.style.fontSize = '22px';
+hamburger.style.cursor = 'pointer';
+document.body.appendChild(hamburger);
+
+// Initial sidebar state
+sidebar.style.width = '0';
+sidebar.style.transition = '0.4s ease';
+sidebar.style.background = 'rgba(30,41,59,0.6)';
+sidebar.style.backdropFilter = 'blur(15px)';
+
+// Hide links initially
+sidebar.querySelectorAll('nav a').forEach(a => {
+  a.style.opacity = '0';
+  a.style.transition = '0.3s';
+});
+
+// Open
+function openSidebar() {
+  sidebar.style.width = '220px';
+  overlay.style.opacity = '1';
+  overlay.style.pointerEvents = 'all';
+
+  sidebar.querySelectorAll('nav a').forEach((a, i) => {
+    setTimeout(() => a.style.opacity = '1', i * 80);
+  });
+}
+
+// Close
+function closeSidebar() {
+  sidebar.querySelectorAll('nav a').forEach(a => a.style.opacity = '0');
+
+  setTimeout(() => {
+    sidebar.style.width = '0';
+  }, 150);
+
+  overlay.style.opacity = '0';
+  overlay.style.pointerEvents = 'none';
+}
+
+// Toggle
+hamburger.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (sidebar.style.width === '0px' || sidebar.style.width === '') {
+    openSidebar();
+  } else {
+    closeSidebar();
+  }
+});
+
+// Close on overlay click
+overlay.addEventListener('click', closeSidebar);
+
+// Responsive
+function handleLayout() {
+  if (window.innerWidth >= 900) {
+    sidebar.style.width = '220px';
+    hamburger.style.display = 'none';
+    main.style.marginLeft = '220px';
+
+    sidebar.querySelectorAll('nav a').forEach(a => a.style.opacity = '1');
+
+    overlay.style.opacity = '0';
+    overlay.style.pointerEvents = 'none';
+  } else {
+    sidebar.style.width = '0';
+    hamburger.style.display = 'block';
+    main.style.marginLeft = '0';
+
+    sidebar.querySelectorAll('nav a').forEach(a => a.style.opacity = '0');
+  }
+}
+
+window.addEventListener('resize', handleLayout);
+handleLayout();
+document.querySelectorAll('.card').forEach(card => {
+  card.addEventListener('click', () => {
+    alert(card.querySelector('h3').innerText);
+  });
+});
+</script>
+</body>
+</html>
